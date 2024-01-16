@@ -7,10 +7,22 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-public interface PersonService {
-     Person savePerson(Person person);
+public class PersonService {
+    private final PersonRepository repository;
 
-     Person getPersonById(Long id);
+    public PersonService(PersonRepository repository) {
+        this.repository = repository;
+    }
 
-     List<Person> getAll();
+    public Person savePerson(Person person) {
+        return repository.save(person);
+    }
+
+    public Person getPersonById(Long id) {
+        return repository.findById(id).get();
+    }
+
+    public List<Person> getAll() {
+        return repository.findAll();
+    }
 }
