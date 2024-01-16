@@ -1,39 +1,134 @@
 package com.omid.batch.job;
 
 import com.omid.batch.job.listener.JobCompletionNotificationListener;
-import com.omid.batch.job.listener.PersonItemReadListener;
 import com.omid.batch.job.mapper.PersonRowMapper;
 import com.omid.entity.Person;
+import com.omid.service.api.PersonService;
+import org.assertj.core.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
-import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.*;
+import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.extensions.excel.poi.PoiItemReader;
 import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemStreamReader;
-import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.ItemStreamWriter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.transaction.PlatformTransactionManager;
 
+import javax.sql.DataSource;
+
+@Configuration
 public class ExcelToDatabaseJob {
-    private final JobRepository jobRepository;
+
+    @Autowired
+    public JobBuilderFactory jobBuilderFactory;
+    @Autowired
+    public StepBuilderFactory stepBuilderFactory;
+    @Autowired
+    public DataSource dataSource;
+    @Autowired
+    public PersonService personService;
+    @Autowired
+    public JobRepository jobRepository;
     public static final Logger logger = LoggerFactory.getLogger(CsvToDatabaseJob.class);
 
     @Value("classpath:excel/e.xlsx")
     byte[] excelFile;
 
-    public ExcelToDatabaseJob(JobRepository jobRepository) {
-        this.jobRepository = jobRepository;
+//    @Bean
+//    public Job excelToDataBaseJobJob(Step step1) {
+//        var name = "Persons Import Job";
+//        var builder = new JobBuilder(name, jobRepository);
+//        return builder.start(step1).listener(new JobCompletionNotificationListener()).build();
+//    }
+
+    @Bean("excelToDataBaseJob")
+    public Job getJob() {
+        return this.jobBuilderFactory.get(ExcelToDatabaseJob.class.getName())
+                .start(this.getStep())
+                .listener(this.getJobListener())
+                .build();
     }
 
-    @Bean
+    @Bean("ExcelToDataBaseStep")
+    public Step getStep() {
+        return this.stepBuilderFactory.get("JsonAndExcelToDataBaseStep")
+                .<Person, Person>chunk(10_000)
+                .reader(this.getItemReader(null))
+                .processor(this.getItemProcessor(null))
+                .writer(this.getItemWriter(null))
+                .listener(this.getStepListener())
+                .build();
+    }
+
+    @StepScope
+    @Bean("ExcelToDataBaseItemReader")
+    public ItemStreamReader<Person> getItemReader(@Value("#{stepExecution}") StepExecution stepExecution) {
+        PoiItemReader<Person> reader = new PoiItemReader<>();
+
+        reader.setLinesToSkip(1);
+        reader.setResource(new ByteArrayResource(excelFile));
+        reader.setRowMapper(new PersonRowMapper());
+        reader.setMaxItemCount(100_000);
+
+        logger.info("################insured excel file id :]");
+
+        return reader;
+    }
+
+    @StepScope
+    @Bean("ExcelToDataBaseItemProcessor")
+    public ItemProcessor<Person, Person> getItemProcessor(@Value("#{stepExecution}") StepExecution stepExecution) {
+        return item -> item;
+    }
+
+    @StepScope
+    @Bean("ExcelToDataBaseItemWriter")
+    public ItemStreamWriter<Person> getItemWriter(@Value("#{stepExecution}") StepExecution stepExecution) {
+        return items -> {
+            for (Person item : items) {
+                personService.savePerson(item);
+            }
+        };
+    }
+
+    protected JobExecutionListener getJobListener() {
+        return new JobExecutionListener() {
+            @Override
+            public void beforeJob(JobExecution jobExecution) {
+                JobExecutionListener.super.beforeJob(jobExecution);
+            }
+
+            @Override
+            public void afterJob(JobExecution jobExecution) {
+                JobExecutionListener.super.afterJob(jobExecution);
+            }
+        };
+    }
+
+    private StepExecutionListener getStepListener() {
+        return new StepExecutionListener() {
+            @Override
+            public void beforeStep(StepExecution stepExecution) {
+                StepExecutionListener.super.beforeStep(stepExecution);
+            }
+
+            @Override
+            public ExitStatus afterStep(StepExecution stepExecution) {
+                return StepExecutionListener.super.afterStep(stepExecution);
+            }
+        };
+    }
+
+    /*  @Bean
     public Job insertIntoDbFromExcelJob(Step step1) {
         var name = "Persons Import Job";
         var builder = new JobBuilder(name, jobRepository);
@@ -71,4 +166,54 @@ public class ExcelToDatabaseJob {
         logger.info("################insured excel file id :]");
 
         return reader;    }
+
+
+
+
+    @Bean
+    public ItemReader<Person> excelItemReader() {
+        PoiItemReader<Person> reader = new PoiItemReader<>();
+        reader.setLinesToSkip(1); // Skip the header row
+        reader.setResource(new ClassPathResource("Persons.xlsx")); // Path to your Excel file
+        reader.setRowMapper(excelRowMapper());
+
+        return reader;
+    }
+
+    @Bean
+    public RowMapper<Person> excelRowMapper() {
+        return (row, rowNum) -> {
+            Person Person = new Person();
+            Person.setFirstName(row.getCell(0).getStringCellValue());
+            Person.setLastName(row.getCell(1).getStringCellValue());
+            return Person;
+        };
+    }
+
+    @Bean
+    public ItemWriter<Person> databaseItemWriter() {
+        return items -> {
+            for (Person item : items) {
+                personService.savePerson(item);
+            }
+        };
+    }
+
+    @Bean
+    public Step step(ItemReader<Person> reader, ItemWriter<Person> writer) {
+        return stepBuilderFactory.get("step")
+                .<Person, Person>chunk(10)
+                .reader(reader)
+                .writer(writer)
+                .build();
+    }
+
+    @Bean
+    public Job job(Step step) {
+        return jobBuilderFactory.get("job")
+                .flow(step)
+                .end()
+                .build();
+    }*/
+
 }

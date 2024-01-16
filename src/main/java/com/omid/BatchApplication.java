@@ -32,15 +32,24 @@ public class BatchApplication implements CommandLineRunner {
     public void run(String... args) throws Exception {
 
         Job job = (Job) applicationContext.getBean("insertIntoDbFromCsvJob");
+        Job jobExcelToDataBaseJob = (Job) applicationContext.getBean("excelToDataBaseJob");
 
         JobParameters jobParameters = new JobParametersBuilder()
                 .addString("JobID", String.valueOf(System.currentTimeMillis()))
                 .toJobParameters();
 
         var jobExecution = jobLauncher.run(job, jobParameters);
+        var jobExecutionExcelToDataBaseJob = jobLauncher.run(jobExcelToDataBaseJob, jobParameters);
 
         var batchStatus = jobExecution.getStatus();
+        var batchStatusExcelToDataBaseJob = jobExecutionExcelToDataBaseJob.getStatus();
+
         while (batchStatus.isRunning()) {
+            System.out.println("Still running...");
+            Thread.sleep(5000L);
+        }
+
+        while (batchStatusExcelToDataBaseJob.isRunning()) {
             System.out.println("Still running...");
             Thread.sleep(5000L);
         }

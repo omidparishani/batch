@@ -1,14 +1,16 @@
+/*
 package com.omid.batch.config;
 import com.omid.entity.Person;
+import com.omid.service.api.PersonService;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.extensions.excel.RowMapper;
+import org.springframework.batch.extensions.excel.poi.PoiItemReader;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.excel.RowMapper;
-import org.springframework.batch.item.excel.poi.PoiItemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,7 +20,7 @@ import javax.sql.DataSource;
 
 @Configuration
 @EnableBatchProcessing
-public class BatchConfig {
+public class BatchConfiguration {
 
     @Autowired
     public JobBuilderFactory jobBuilderFactory;
@@ -28,6 +30,9 @@ public class BatchConfig {
 
     @Autowired
     public DataSource dataSource;
+
+    @Autowired
+    public PersonService personService;
 
     @Bean
     public ItemReader<Person> excelItemReader() {
@@ -43,9 +48,8 @@ public class BatchConfig {
     public RowMapper<Person> excelRowMapper() {
         return (row, rowNum) -> {
             Person Person = new Person();
-            Person.setId(row.getCell(0).getStringCellValue());
-            Person.setName(row.getCell(1).getStringCellValue());
-            // Set other properties as needed
+            Person.setFirstName(row.getCell(0).getStringCellValue());
+            Person.setLastName(row.getCell(1).getStringCellValue());
             return Person;
         };
     }
@@ -54,8 +58,7 @@ public class BatchConfig {
     public ItemWriter<Person> databaseItemWriter() {
         return items -> {
             for (Person item : items) {
-                // Save each item to the database
-                // Use JPA or JDBC to persist the data
+                personService.savePerson(item);
             }
         };
     }
@@ -78,3 +81,4 @@ public class BatchConfig {
     }
 
 }
+*/
