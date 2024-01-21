@@ -27,8 +27,8 @@ public class PersonRowMapper  implements RowMapper<Person> {
     }
 
     public enum RowSetValue implements RowValue {
-        FIRST_NAME(0, 75, Number.class, ""),
-        LAST_NAME(1, 75, Number.class, "");
+        FIRST_NAME(0, 75, String.class, ""),
+        LAST_NAME(1, 75, String.class, "");
 
         String defaultValue;
         private Integer value;
